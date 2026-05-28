@@ -131,6 +131,10 @@
                 <div class="sku">
                     {{ $product->sku }}
                 </div>
+
+                <div class="sku">
+                    {{ $product->type_name }}
+                </div>
             </div>
         @endforeach
     </div>

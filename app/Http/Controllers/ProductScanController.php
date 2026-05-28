@@ -71,26 +71,20 @@ class ProductScanController extends Controller
             &$stockAfter
         ) {
             if ($action === ScanLog::ACTION_IMPORT_STOCK) {
-                if (!$quantity) {
-                    abort(422, 'Vui lòng nhập số lượng cần nhập kho.');
-                }
-
-                $product->stock += $quantity;
+                $product->storage_status = 'in_storage';
+                $product->stock = 1;
                 $product->save();
 
                 $stockAfter = $product->stock;
             }
 
             if ($action === ScanLog::ACTION_EXPORT_STOCK) {
-                if (!$quantity) {
-                    abort(422, 'Vui lòng nhập số lượng cần xuất kho.');
+                if ($product->storage_status === 'checked_out') {
+                    abort(422, 'Mẫu vật chứng này đã được lấy ra khỏi kho.');
                 }
 
-                if ($product->stock < $quantity) {
-                    abort(422, 'Tồn kho không đủ để xuất.');
-                }
-
-                $product->stock -= $quantity;
+                $product->storage_status = 'checked_out';
+                $product->stock = 0;
                 $product->save();
 
                 $stockAfter = $product->stock;
