@@ -31,8 +31,17 @@
 
                 <div style="margin-bottom:12px;">
                     <label>Người phụ trách</label>
-                    <input type="text" name="officer_name" value="{{ old('officer_name') }}"
-                           style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px;">
+
+                    <select name="officer_user_id"
+                            style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px;">
+                        <option value="">-- Chọn người phụ trách --</option>
+
+                        @foreach ($users as $user)
+                            <option value="{{ $user->id }}" @selected(old('officer_user_id') == $user->id)>
+                                {{ $user->name }} - {{ $user->email }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div style="margin-bottom:12px;">

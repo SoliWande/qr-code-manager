@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CaseFile;
 use Illuminate\Http\Request;
+use App\Models\User;
 
 class CaseFileController extends Controller
 {
@@ -16,7 +17,9 @@ class CaseFileController extends Controller
 
     public function create()
     {
-        return view('case_files.create');
+        $users = User::orderBy('name')->get();
+
+        return view('case_files.create', compact('users'));
     }
 
     public function store(Request $request)
@@ -24,16 +27,23 @@ class CaseFileController extends Controller
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'scene_location' => ['nullable', 'string', 'max:255'],
-            'officer_name' => ['nullable', 'string', 'max:255'],
+            'officer_user_id' => ['nullable', 'exists:users,id'],
             'case_date' => ['nullable', 'date'],
             'description' => ['nullable', 'string'],
         ]);
+
+        $officer = null;
+
+        if ($request->filled('officer_user_id')) {
+            $officer = User::find($request->officer_user_id);
+        }
 
         $caseFile = CaseFile::create([
             'case_code' => $this->generateCaseCode(),
             'title' => $request->title,
             'scene_location' => $request->scene_location,
-            'officer_name' => $request->officer_name,
+            'officer_user_id' => $request->officer_user_id,
+            'officer_name' => $officer ? $officer->name : null,
             'case_date' => $request->case_date,
             'description' => $request->description,
             'status' => 'open',

@@ -20,4 +20,8 @@ class CaseFile extends Model
     {
         return $this->hasMany(Product::class);
     }
+    public function officer()
+    {
+        return $this->belongsTo(User::class, 'officer_user_id');
+    }
 }

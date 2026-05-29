@@ -19,6 +19,18 @@ class Product extends Model
         self::TYPE_IMAGE => 'Hình ảnh',
         self::TYPE_DIGITAL => 'Dữ liệu điện tử',
     ];
+
+    public const STORAGE_STATUS_IN_STORAGE = 'in_storage';
+    public const STORAGE_STATUS_ASSESSMENT = 'assessment';
+    public const STORAGE_STATUS_RETURNED = 'returned';
+    public const STORAGE_STATUS_DESTROYED = 'destroyed';
+
+    public const STORAGE_STATUS_LABELS = [
+        self::STORAGE_STATUS_IN_STORAGE => 'Đang lưu kho',
+        self::STORAGE_STATUS_ASSESSMENT => 'Đang giám định',
+        self::STORAGE_STATUS_RETURNED => 'Đã hoàn trả',
+        self::STORAGE_STATUS_DESTROYED => 'Đã tiêu huỷ',
+    ];
     protected $fillable = [
         'case_file_id',
         'evidence_storage_id',
@@ -50,5 +62,10 @@ class Product extends Model
     public function getTypeNameAttribute()
     {
         return self::TYPES[$this->type] ?? 'Không xác định';
+    }
+
+    public function getStorageStatusNameAttribute()
+    {
+        return self::STORAGE_STATUS_LABELS[$this->storage_status] ?? 'Không xác định';
     }
 }

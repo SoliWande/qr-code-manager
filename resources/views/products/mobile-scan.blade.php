@@ -155,18 +155,45 @@
         <div id="reader"></div>
 
         <div class="field">
-            <label>Thao tác</label>
-            <select id="action">
-                <option value="view">Xem thông tin</option>
-                <option value="check_stock">Kiểm tra tồn kho</option>
-                <option value="import_stock">Nhập kho</option>
-                <option value="export_stock">Xuất kho</option>
+            <label>Thao tác sau khi quét</label>
+            <select id="action" onchange="toggleActionFields()">
+                <option value="view">Chỉ xem thông tin</option>
+                <option value="import_storage">Nhập kho vật chứng</option>
+                <option value="handover_assessment">Xuất bàn giao giám định</option>
+                <option value="return_destroy">Hoàn trả / Tiêu huỷ</option>
             </select>
         </div>
 
-        <div class="field">
-            <label>Số lượng</label>
-            <input type="number" id="quantity" min="1" placeholder="Nhập khi nhập/xuất kho">
+        <div id="import_storage_fields" style="display:none;">
+            <div class="field">
+                <label>Vị trí lưu trữ</label>
+                <input
+                    type="text"
+                    id="storage_location"
+                    placeholder="Ví dụ: Tủ định kho, tủ đông lạnh, phòng lưu mẫu số X"
+                >
+            </div>
+        </div>
+
+        <div id="handover_assessment_fields" style="display:none;">
+            <div class="field">
+                <label>Người nhận giám định</label>
+                <input
+                    type="text"
+                    id="receiver_name"
+                    placeholder="Tên cán bộ/phòng Hóa/Sinh tiếp nhận"
+                >
+            </div>
+        </div>
+
+        <div id="return_destroy_fields" style="display:none;">
+            <div class="field">
+                <label>Hình thức xử lý</label>
+                <select id="return_type">
+                    <option value="return">Hoàn trả cơ quan điều tra</option>
+                    <option value="destroy">Tiêu huỷ</option>
+                </select>
+            </div>
         </div>
 
         <div class="field">
@@ -214,13 +241,13 @@
             </div>
 
             <div class="field">
-                <label>Giá</label>
+                <label>Loại vật chứng</label>
                 <input type="text" id="price" readonly>
             </div>
 
             <div class="field">
-                <label>Tồn kho</label>
-                <input type="text" id="stock" readonly>
+                <label>Trạng thái kho</label>
+                <input type="text" id="storage_status" readonly>
             </div>
 
             <div class="field">
@@ -254,8 +281,8 @@
         document.getElementById('qr_code').value = '';
         document.getElementById('name').value = '';
         document.getElementById('sku').value = '';
-        document.getElementById('price').value = '';
-        document.getElementById('stock').value = '';
+        document.getElementById('type').value = '';
+        document.getElementById('storage_status').value = '';
         document.getElementById('location').value = '';
         document.getElementById('description').value = '';
     }
@@ -264,11 +291,35 @@
         document.getElementById('qr_code').value = product.qr_code ?? '';
         document.getElementById('name').value = product.name ?? '';
         document.getElementById('sku').value = product.sku ?? '';
-        document.getElementById('price').value = product.price ?? '';
-        document.getElementById('stock').value = product.stock ?? '';
+        document.getElementById('type').value = product.type_name ?? '';
+        document.getElementById('storage_status').value = product.storage_status_name ?? '';
         document.getElementById('location').value = product.location ?? '';
         document.getElementById('description').value = product.description ?? '';
     }
+
+    function toggleActionFields() {
+        const action = document.getElementById('action').value;
+
+        document.getElementById('import_storage_fields').style.display = 'none';
+        document.getElementById('handover_assessment_fields').style.display = 'none';
+        document.getElementById('return_destroy_fields').style.display = 'none';
+
+        if (action === 'import_storage') {
+            document.getElementById('import_storage_fields').style.display = 'block';
+        }
+
+        if (action === 'handover_assessment') {
+            document.getElementById('handover_assessment_fields').style.display = 'block';
+        }
+
+        if (action === 'return_destroy') {
+            document.getElementById('return_destroy_fields').style.display = 'block';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        toggleActionFields();
+    });
 
     async function findProduct(code) {
         code = code.trim();
@@ -287,15 +338,25 @@
         lastScanAt = now;
 
         const action = document.getElementById('action').value;
-        const quantity = document.getElementById('quantity').value;
-        const note = document.getElementById('note').value;
+        const storageLocation = document.getElementById('storage_location')?.value || '';
+        const receiverName = document.getElementById('receiver_name')?.value || '';
+        const returnType = document.getElementById('return_type')?.value || '';
+        const note = document.getElementById('note')?.value || '';
 
         const params = new URLSearchParams();
 
         params.append('action', action);
 
-        if (quantity) {
-            params.append('quantity', quantity);
+        if (storageLocation) {
+            params.append('storage_location', storageLocation);
+        }
+
+        if (receiverName) {
+            params.append('receiver_name', receiverName);
+        }
+
+        if (returnType) {
+            params.append('return_type', returnType);
         }
 
         if (note) {
@@ -315,14 +376,14 @@
 
             fillForm(data.product);
 
-            if (action === 'import_stock') {
-                showMessage('Đã nhập kho thành công: ' + data.product.name, 'success');
-            } else if (action === 'export_stock') {
-                showMessage('Đã xuất kho thành công: ' + data.product.name, 'success');
-            } else if (action === 'check_stock') {
-                showMessage('Đã kiểm tra tồn kho: ' + data.product.stock, 'success');
+            if (action === 'import_storage') {
+                showMessage('Đã nhập kho vật chứng: ' + data.product.name, 'success');
+            } else if (action === 'handover_assessment') {
+                showMessage('Đã bàn giao giám định: ' + data.product.name, 'success');
+            } else if (action === 'return_destroy') {
+                showMessage('Đã ghi nhận hoàn trả/tiêu huỷ: ' + data.product.name, 'success');
             } else {
-                showMessage('Đã tìm thấy: ' + data.product.name, 'success');
+                showMessage('Đã tìm thấy mẫu vật chứng: ' + data.product.name, 'success');
             }
 
         } catch (error) {

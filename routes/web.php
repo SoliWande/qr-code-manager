@@ -27,6 +27,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
+    Route::get('/scan', [ProductScanController::class, 'index'])
+        ->name('products.scan');
+
+    Route::get('/api/products/qr/{code}', [ProductScanController::class, 'findByQrCode'])
+        ->name('products.find-by-qr');
+});
+
+Route::middleware(['auth', 'role:scene_officer,commander'])->group(function () {
     Route::get('/case-files', [CaseFileController::class, 'index'])
         ->name('case_files.index');
 
@@ -39,26 +47,24 @@ Route::middleware('auth')->group(function () {
     Route::get('/case-files/{caseFile}', [CaseFileController::class, 'show'])
         ->name('case_files.show');
 
-    Route::get('/evidence-storage', [EvidenceStorageController::class, 'index'])
-        ->name('evidence_storage.index');
-
     Route::get('/case-files/{caseFile}/evidences/create', [EvidenceController::class, 'create'])
         ->name('evidences.create');
 
     Route::post('/case-files/{caseFile}/evidences', [EvidenceController::class, 'store'])
         ->name('evidences.store');
+});
 
-    Route::get('/scan', [ProductScanController::class, 'index'])
-        ->name('products.scan');
-
-    Route::get('/products/qrcodes', [ProductScanController::class, 'qrCodes'])
-        ->name('products.qrcodes');
+Route::middleware(['auth', 'role:storage_keeper,commander'])->group(function () {
+    Route::get('/evidence-storage', [EvidenceStorageController::class, 'index'])
+        ->name('evidence_storage.index');
 
     Route::get('/scan-logs', [ScanLogController::class, 'index'])
         ->name('scan_logs.index');
+});
 
-    Route::get('/api/products/qr/{code}', [ProductScanController::class, 'findByQrCode'])
-        ->name('products.find-by-qr');
+Route::middleware(['auth', 'role:scene_officer,storage_keeper,commander'])->group(function () {
+    Route::get('/products/qrcodes', [ProductScanController::class, 'qrCodes'])
+        ->name('products.qrcodes');
 });
 
 require __DIR__.'/auth.php';

@@ -34,7 +34,10 @@
                         <p><strong>Mã hồ sơ:</strong> {{ $caseFile->case_code }}</p>
                         <p><strong>Tên hồ sơ:</strong> {{ $caseFile->title }}</p>
                         <p><strong>Địa điểm hiện trường:</strong> {{ $caseFile->scene_location }}</p>
-                        <p><strong>Người phụ trách:</strong> {{ $caseFile->officer_name }}</p>
+                        <p>
+                            <strong>Người phụ trách:</strong>
+                            {{ optional($caseFile->officer)->name ?? $caseFile->officer_name ?? '-' }}
+                        </p>
                         <p><strong>Ngày lập:</strong> {{ $caseFile->case_date }}</p>
                         <p><strong>Mô tả:</strong> {{ $caseFile->description }}</p>
                     </div>

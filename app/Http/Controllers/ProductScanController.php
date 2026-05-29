@@ -21,12 +21,21 @@ class ProductScanController extends Controller
         $request->validate([
             'action' => [
                 'nullable',
-                Rule::in(ScanLog::ACTIONS),
+                \Illuminate\Validation\Rule::in(\App\Models\ScanLog::ACTIONS),
             ],
-            'quantity' => [
+            'storage_location' => [
                 'nullable',
-                'integer',
-                'min:1',
+                'string',
+                'max:255',
+            ],
+            'receiver_name' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'return_type' => [
+                'nullable',
+                'in:return,destroy',
             ],
             'note' => [
                 'nullable',
@@ -35,70 +44,135 @@ class ProductScanController extends Controller
             ],
         ]);
 
-        $action = $request->input('action', ScanLog::ACTION_VIEW);
-        $quantity = $request->input('quantity');
+        $action = $request->input('action', \App\Models\ScanLog::ACTION_VIEW);
 
-        $product = Product::where('qr_code', $code)->first();
+        $user = $request->user();
+
+        if ($action === \App\Models\ScanLog::ACTION_IMPORT_STORAGE) {
+            if (!$user->hasRole([
+                \App\Models\User::ROLE_STORAGE_KEEPER,
+                \App\Models\User::ROLE_COMMANDER,
+            ])) {
+                abort(403, 'Bạn không có quyền nhập kho vật chứng.');
+            }
+        }
+
+        if ($action === \App\Models\ScanLog::ACTION_HANDOVER_ASSESSMENT) {
+            if (!$user->hasRole([
+                \App\Models\User::ROLE_COMMANDER,
+            ])) {
+                abort(403, 'Chỉ huy mới có quyền phê duyệt xuất bàn giao giám định.');
+            }
+        }
+
+        if ($action === \App\Models\ScanLog::ACTION_RETURN_DESTROY) {
+            if (!$user->hasRole([
+                \App\Models\User::ROLE_COMMANDER,
+                \App\Models\User::ROLE_STORAGE_KEEPER,
+            ])) {
+                abort(403, 'Bạn không có quyền hoàn trả hoặc tiêu huỷ vật chứng.');
+            }
+        }
+
+        $product = \App\Models\Product::where('qr_code', $code)->first();
 
         if (!$product) {
-            ScanLog::create([
+            \App\Models\ScanLog::create([
                 'product_id' => null,
-                'user_id' => Auth::id(),
+                'user_id' => \Illuminate\Support\Facades\Auth::id(),
                 'qr_code' => $code,
                 'action' => $action,
-                'quantity' => $quantity,
-                'note' => 'Không tìm thấy sản phẩm',
+                'note' => 'Không tìm thấy mẫu vật chứng',
                 'ip_address' => $request->ip(),
                 'user_agent' => substr($request->userAgent() ?? '', 0, 500),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Không tìm thấy sản phẩm với mã: ' . $code,
+                'message' => 'Không tìm thấy mẫu vật chứng với mã: ' . $code,
             ], 404);
         }
 
         $stockBefore = $product->stock;
-        $stockAfter = $stockBefore;
+        $stockAfter = $product->stock;
 
-        DB::transaction(function () use (
+        \Illuminate\Support\Facades\DB::transaction(function () use (
             $request,
             $product,
             $code,
             $action,
-            $quantity,
             $stockBefore,
             &$stockAfter
         ) {
-            if ($action === ScanLog::ACTION_IMPORT_STOCK) {
-                $product->storage_status = 'in_storage';
+            if ($action === \App\Models\ScanLog::ACTION_IMPORT_STORAGE) {
+                $product->storage_status = \App\Models\Product::STORAGE_STATUS_IN_STORAGE;
                 $product->stock = 1;
-                $product->save();
 
+                if ($request->filled('storage_location')) {
+                    $product->location = $request->storage_location;
+                }
+
+                $product->save();
                 $stockAfter = $product->stock;
             }
 
-            if ($action === ScanLog::ACTION_EXPORT_STOCK) {
-                if ($product->storage_status === 'checked_out') {
-                    abort(422, 'Mẫu vật chứng này đã được lấy ra khỏi kho.');
+            if ($action === \App\Models\ScanLog::ACTION_HANDOVER_ASSESSMENT) {
+                if ($product->storage_status !== \App\Models\Product::STORAGE_STATUS_IN_STORAGE) {
+                    abort(422, 'Mẫu vật chứng không ở trạng thái đang lưu kho, không thể bàn giao giám định.');
                 }
 
-                $product->storage_status = 'checked_out';
+                $product->storage_status = \App\Models\Product::STORAGE_STATUS_ASSESSMENT;
                 $product->stock = 0;
                 $product->save();
 
                 $stockAfter = $product->stock;
             }
 
-            ScanLog::create([
+            if ($action === \App\Models\ScanLog::ACTION_RETURN_DESTROY) {
+                $returnType = $request->input('return_type', 'return');
+
+                if ($returnType === 'destroy') {
+                    $product->storage_status = \App\Models\Product::STORAGE_STATUS_DESTROYED;
+                    $product->stock = 0;
+                } else {
+                    $product->storage_status = \App\Models\Product::STORAGE_STATUS_RETURNED;
+                    $product->stock = 0;
+                }
+
+                $product->save();
+
+                $stockAfter = $product->stock;
+            }
+
+            $noteParts = [];
+
+            if ($request->filled('storage_location')) {
+                $noteParts[] = 'Vị trí lưu trữ: ' . $request->storage_location;
+            }
+
+            if ($request->filled('receiver_name')) {
+                $noteParts[] = 'Người nhận: ' . $request->receiver_name;
+            }
+
+            if ($request->filled('return_type')) {
+                $noteParts[] = 'Hình thức: ' . (
+                    $request->return_type === 'destroy' ? 'Tiêu huỷ' : 'Hoàn trả'
+                    );
+            }
+
+            if ($request->filled('note')) {
+                $noteParts[] = 'Ghi chú: ' . $request->note;
+            }
+
+            \App\Models\ScanLog::create([
                 'product_id' => $product->id,
-                'user_id' => Auth::id(),
+                'user_id' => \Illuminate\Support\Facades\Auth::id(),
                 'qr_code' => $code,
                 'action' => $action,
-                'quantity' => $quantity,
+                'quantity' => 1,
                 'stock_before' => $stockBefore,
                 'stock_after' => $stockAfter,
-                'note' => $request->input('note'),
+                'note' => implode(' | ', $noteParts),
                 'ip_address' => $request->ip(),
                 'user_agent' => substr($request->userAgent() ?? '', 0, 500),
             ]);
@@ -113,12 +187,15 @@ class ProductScanController extends Controller
                 'id' => $product->id,
                 'qr_code' => $product->qr_code,
                 'name' => $product->name,
-                'sku' => $product->sku,
-                'price' => $product->price,
-                'stock' => $product->stock,
                 'type' => $product->type,
+                'type_name' => $product->type_name,
+                'sku' => $product->sku,
                 'location' => $product->location,
                 'description' => $product->description,
+                'storage_status' => $product->storage_status,
+                'storage_status_name' => $product->storage_status_name,
+                'case_code' => optional($product->caseFile)->case_code,
+                'case_title' => optional($product->caseFile)->title,
             ],
         ]);
     }
