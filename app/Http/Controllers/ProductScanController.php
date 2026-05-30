@@ -13,7 +13,9 @@ class ProductScanController extends Controller
 {
     public function index()
     {
-        return view('products.mobile-scan');
+        $storages = \App\Models\EvidenceStorage::orderBy('storage_code')->get();
+
+        return view('products.mobile-scan', compact('storages'));
     }
 
     public function findByQrCode(Request $request, $code)
@@ -42,6 +44,10 @@ class ProductScanController extends Controller
                 'string',
                 'max:1000',
             ],
+            'evidence_storage_id' => [
+                'nullable',
+                'exists:evidence_storages,id',
+            ],
         ]);
 
         $action = $request->input('action', \App\Models\ScanLog::ACTION_VIEW);
@@ -53,7 +59,10 @@ class ProductScanController extends Controller
                 \App\Models\User::ROLE_STORAGE_KEEPER,
                 \App\Models\User::ROLE_COMMANDER,
             ])) {
-                abort(403, 'Bạn không có quyền nhập kho vật chứng.');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn không có quyền nhập kho vật chứng.',
+                ], 403);
             }
         }
 
@@ -61,7 +70,10 @@ class ProductScanController extends Controller
             if (!$user->hasRole([
                 \App\Models\User::ROLE_COMMANDER,
             ])) {
-                abort(403, 'Chỉ huy mới có quyền phê duyệt xuất bàn giao giám định.');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chỉ huy mới có quyền phê duyệt xuất bàn giao giám định.',
+                ], 403);
             }
         }
 
@@ -70,7 +82,10 @@ class ProductScanController extends Controller
                 \App\Models\User::ROLE_COMMANDER,
                 \App\Models\User::ROLE_STORAGE_KEEPER,
             ])) {
-                abort(403, 'Bạn không có quyền hoàn trả hoặc tiêu huỷ vật chứng.');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn không có quyền hoàn trả hoặc tiêu huỷ vật chứng.',
+                ], 403);
             }
         }
 
@@ -107,6 +122,10 @@ class ProductScanController extends Controller
             if ($action === \App\Models\ScanLog::ACTION_IMPORT_STORAGE) {
                 $product->storage_status = \App\Models\Product::STORAGE_STATUS_IN_STORAGE;
                 $product->stock = 1;
+
+                if ($request->filled('evidence_storage_id')) {
+                    $product->evidence_storage_id = $request->evidence_storage_id;
+                }
 
                 if ($request->filled('storage_location')) {
                     $product->location = $request->storage_location;
@@ -162,6 +181,14 @@ class ProductScanController extends Controller
 
             if ($request->filled('note')) {
                 $noteParts[] = 'Ghi chú: ' . $request->note;
+            }
+
+            if ($request->filled('evidence_storage_id')) {
+                $storage = \App\Models\EvidenceStorage::find($request->evidence_storage_id);
+
+                if ($storage) {
+                    $noteParts[] = 'Kho lưu trữ: ' . $storage->storage_code . ' - ' . $storage->name;
+                }
             }
 
             \App\Models\ScanLog::create([

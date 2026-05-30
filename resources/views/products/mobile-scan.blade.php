@@ -166,11 +166,25 @@
 
         <div id="import_storage_fields" style="display:none;">
             <div class="field">
-                <label>Vị trí lưu trữ</label>
+                <label>Kho / tủ / phòng lưu</label>
+
+                <select id="evidence_storage_id">
+                    <option value="">-- Chọn kho lưu trữ --</option>
+
+                    @foreach ($storages as $storage)
+                        <option value="{{ $storage->id }}">
+                            {{ $storage->storage_code }} - {{ $storage->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="field">
+                <label>Vị trí cụ thể</label>
                 <input
                     type="text"
                     id="storage_location"
-                    placeholder="Ví dụ: Tủ định kho, tủ đông lạnh, phòng lưu mẫu số X"
+                    placeholder="Ví dụ: Ngăn 01, kệ số 2, hộp mẫu A"
                 >
             </div>
         </div>
@@ -242,7 +256,7 @@
 
             <div class="field">
                 <label>Loại vật chứng</label>
-                <input type="text" id="price" readonly>
+                <input type="text" id="type" readonly>
             </div>
 
             <div class="field">
@@ -342,6 +356,7 @@
         const receiverName = document.getElementById('receiver_name')?.value || '';
         const returnType = document.getElementById('return_type')?.value || '';
         const note = document.getElementById('note')?.value || '';
+        const evidenceStorageId = document.getElementById('evidence_storage_id')?.value || '';
 
         const params = new URLSearchParams();
 
@@ -363,12 +378,36 @@
             params.append('note', note);
         }
 
+        if (evidenceStorageId) {
+            params.append('evidence_storage_id', evidenceStorageId);
+        }
+
         try {
             const response = await fetch(
-                '/api/products/qr/' + encodeURIComponent(code) + '?' + params.toString()
+                '/api/products/qr/' + encodeURIComponent(code) + '?' + params.toString(),
+                {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                }
             );
 
-            const data = await response.json();
+            const contentType = response.headers.get('content-type') || '';
+
+            let data;
+
+            if (contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                const text = await response.text();
+                console.log('Non JSON response:', text);
+
+                throw new Error('Server không trả về JSON. Có thể bạn chưa đăng nhập hoặc không có quyền thao tác.');
+            }
+
+            console.log('API response:', data);
 
             if (!response.ok) {
                 throw new Error(data.message || 'Có lỗi xảy ra');

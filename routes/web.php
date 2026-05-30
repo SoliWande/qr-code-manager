@@ -58,8 +58,14 @@ Route::middleware(['auth', 'role:storage_keeper,commander'])->group(function () 
     Route::get('/evidence-storage', [EvidenceStorageController::class, 'index'])
         ->name('evidence_storage.index');
 
-    Route::get('/scan-logs', [ScanLogController::class, 'index'])
-        ->name('scan_logs.index');
+    Route::get('/evidence-storage/create', [EvidenceStorageController::class, 'create'])
+        ->name('evidence_storage.create');
+
+    Route::post('/evidence-storage', [EvidenceStorageController::class, 'store'])
+        ->name('evidence_storage.store');
+
+    Route::get('/evidence-storage/{evidenceStorage}', [EvidenceStorageController::class, 'show'])
+        ->name('evidence_storage.show');
 });
 
 Route::middleware(['auth', 'role:scene_officer,storage_keeper,commander'])->group(function () {

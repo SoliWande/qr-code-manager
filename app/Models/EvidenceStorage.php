@@ -12,4 +12,9 @@ class EvidenceStorage extends Model
         'location',
         'description',
     ];
+
+    public function products()
+    {
+        return $this->hasMany(Product::class, 'evidence_storage_id');
+    }
 }
